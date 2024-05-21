@@ -1,5 +1,5 @@
 import gpiod
-from gpio_line_mux import *
+from .gpio_line_mux import *
 
 class tellurium:
 
@@ -13,7 +13,15 @@ class tellurium:
         self.gpiochip  = gpiod.Chip("gpiochip{}".format(gpiochip_num))
         self.line_mux  = gpio_line_mux()
 
-        self.tx_enable = self.line_mux.get_lines([3*pc_slot+2])
+        match pc_slot:
+            case 0:
+                self.tx_enable = self.line_mux.get_lines([RFP_0_ADGPO_2])
+            case 1:
+                self.tx_enable = self.line_mux.get_lines([RFP_1_ADGPO_2])
+            case 2:
+                self.tx_enable = self.line_mux.get_lines([RFP_2_ADGPO_2])
+            case 3:
+                self.tx_enable = self.line_mux.get_lines([RFP_3_ADGPO_2])
 
         #These lines are for controlling the RX/TX on the transceivers
         self.rx = self.gpiochip0.get_lines([132+transceiver_num*3])
@@ -124,15 +132,15 @@ class tellurium:
 
     #These are each notch filters
     def configure_tx_filters(self, freq):
-        freqs = [ [[230000000,   330000000], [1, 0, 1]],
-                  [[560000000,   660000000], [0, 1, 1]],
-                  [[1300000000, 1550000000], [1, 1, 0]],
-                  [[3125000000, 3750000000], [0, 1, 0]],
-                  [[0,          9999999999], [0, 0, 1]]] #UNFILTERED
+        freqs = {  230000000: [1, 0, 1],
+                   560000000: [0, 1, 1],
+                  1300000000: [1, 1, 0],
+                  3125000000: [0, 1, 0],
+                  9999999999: [0, 0, 1]} #UNFILTERED
 
-        for f in freqs:
-            if freq >= f[0][0] and freq <= f[0][1]:
-                print("Configuring TX filters for {}".format(f[0]))
-                for gpio, val in zip(self.tx_filt, f[1]):
+        for k, v in freqs.items():
+            if freq <= k:
+                print("Configuring TX filters for {}".format(k))
+                for gpio, val in zip(self.tx_filt, v):
                     gpio.set_values([val])
                 return

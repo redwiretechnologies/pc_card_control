@@ -38,7 +38,7 @@ class selenium:
                 j.request(consumer='SELENIUM_HPF', type=gpiod.LINE_REQ_DIR_OUT)
 
     #Configure the low pass filter
-    def configure_lpf(self, freq):
+    def configure_lpf(self, freq, rx_path=-1):
         freqs = {  145000000: [0, 1, 0],
                    440000000: [0, 1, 1],
                   1370000000: [1, 0, 1],
@@ -47,15 +47,18 @@ class selenium:
 
         for k, v in freqs.items():
             if freq <= k:
-                for gpio, val in zip(self.lpf[0], v):
-                    gpio.set_values([val])
-                for gpio, val in zip(self.lpf[1], v):
-                    gpio.set_values([val])
+
+                if rx_path == -1 or rx_path == 0:
+                    for gpio, val in zip(self.lpf[0], v):
+                        gpio.set_values([val])
+                if rx_path == -1 or rx_path == 1:
+                    for gpio, val in zip(self.lpf[1], v):
+                        gpio.set_values([val])
                 print("Set LPF to {}".format(k))
                 return
 
     # Configure the high pass filter
-    def configure_hpf(self, freq):
+    def configure_hpf(self, freq, rx_path=-1):
         freqs = { 3780000000: [1, 1, 0],
                   1930000000: [1, 0, 1],
                    840000000: [0, 1, 1],
@@ -64,14 +67,16 @@ class selenium:
 
         for k, v in freqs.items():
             if freq >= k:
-                for gpio, val in zip(self.hpf[0], v):
-                    gpio.set_values([val])
-                for gpio, val in zip(self.hpf[1], v):
-                    gpio.set_values([val])
+                if rx_path == -1 or rx_path == 0:
+                    for gpio, val in zip(self.hpf[0], v):
+                        gpio.set_values([val])
+                if rx_path == -1 or rx_path == 1:
+                    for gpio, val in zip(self.hpf[1], v):
+                        gpio.set_values([val])
                 print("Set HPF to {}".format(k))
                 return
 
     # Configure both sets of filters
-    def configure_filters(self, freq):
-        self.configure_lpf(freq)
-        self.configure_hpf(freq)
+    def configure_filters(self, freq, rx_path=-1):
+        self.configure_lpf(freq, rx_path)
+        self.configure_hpf(freq, rx_path)
