@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: pc_card_control
+Version: 1.0.0
+Summary: A Python package for controlling the Tellurium and Selenium personality cards on RWT SDRs.
+Author-email: Jonathan Ambrose <jambrose@redwiretechnologies.us>
+Project-URL: Homepage, https://github.com/redwiretechnologies/pc_card_control
+Project-URL: Issues, https://github.com/redwiretechnologies/pc_card_control/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Red Wire Technologies <support@redwiretechnologies.us>
+#
+# SPDX-License-Identifier: MIT
+
 import gpiod
 from .gpio_line_mux import *
 
