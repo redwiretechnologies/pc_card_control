@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2024 Red Wire Technologies <support@redwiretechnologies.us>
-#
+
 # SPDX-License-Identifier: MIT
 
 import gpiod
 from .gpio_line_mux import *
+from .iio_gpo_control import *
 
 class tellurium:
 
@@ -11,25 +12,35 @@ class tellurium:
     # gpiochip_num is the number of the gpiochip for the given Tellurium
     # This can be found by running gpioinfo from the terminal
     # transceiver_num specifies which transceiver card you are using ([0-1] on Carbon)
-    def __init__(self, pc_slot, gpiochip_num, transceiver_num):
+    def __init__(self, pc_slot, gpiochip_num, transceiver_num, carp=1):
         self.gpiochip0 = gpiod.Chip('gpiochip0')
-        self.gpiochip2 = gpiod.Chip('gpiochip2')
+        if carp:
+            self.gpiochip2 = gpiod.Chip('gpiochip2')
+            self.line_mux  = gpio_line_mux()
+        else:
+            self.gpo_ctrl = iio_gpo_control()
         self.gpiochip  = gpiod.Chip("gpiochip{}".format(gpiochip_num))
-        self.line_mux  = gpio_line_mux()
 
-        match pc_slot:
-            case 0:
-                self.tx_enable = self.line_mux.get_lines([RFP_0_ADGPO_2])
-            case 1:
-                self.tx_enable = self.line_mux.get_lines([RFP_1_ADGPO_2])
-            case 2:
-                self.tx_enable = self.line_mux.get_lines([RFP_2_ADGPO_2])
-            case 3:
-                self.tx_enable = self.line_mux.get_lines([RFP_3_ADGPO_2])
+        if carp:
+            match pc_slot:
+                case 0:
+                    self.tx_enable = self.line_mux.get_lines([RFP_0_ADGPO_2])
+                case 1:
+                    self.tx_enable = self.line_mux.get_lines([RFP_1_ADGPO_2])
+                case 2:
+                    self.tx_enable = self.line_mux.get_lines([RFP_2_ADGPO_2])
+                case 3:
+                    self.tx_enable = self.line_mux.get_lines([RFP_3_ADGPO_2])
+        else:
+            self.tx_enable = self.gpo_ctrl.get_lines([ADGPO_2])
 
         #These lines are for controlling the RX/TX on the transceivers
-        self.rx = self.gpiochip0.get_lines([132+transceiver_num*3])
-        self.tx = self.gpiochip0.get_lines([133+transceiver_num*3])
+        if carp:
+            self.rx = self.gpiochip0.get_lines([132+transceiver_num*3])
+            self.tx = self.gpiochip0.get_lines([133+transceiver_num*3])
+        else:
+            self.rx = self.gpiochip0.get_lines([125])
+            self.tx = self.gpiochip0.get_lines([126])
 
         self.rx_lpf  = [None]*3
         self.rx_hpf  = [None]*3
@@ -39,11 +50,18 @@ class tellurium:
         # The first four of these lines live on an I2C expander on CARP
         # The position of the GPIOs on the expander are relative to the
         # slot number
-        self.rx_lpf[0] = self.gpiochip2.get_lines([6*pc_slot+1])
-        self.rx_lpf[1] = self.gpiochip2.get_lines([6*pc_slot+2])
-        self.rx_lpf[2] = self.gpiochip2.get_lines([6*pc_slot+3])
-        self.rx_hpf[0] = self.gpiochip2.get_lines([6*pc_slot+4])
-        self.rx_hpf[1] = self.gpiochip2.get_lines([6*pc_slot+5])
+        if carp:
+            self.rx_lpf[0] = self.gpiochip2.get_lines([6*pc_slot+1])
+            self.rx_lpf[1] = self.gpiochip2.get_lines([6*pc_slot+2])
+            self.rx_lpf[2] = self.gpiochip2.get_lines([6*pc_slot+3])
+            self.rx_hpf[0] = self.gpiochip2.get_lines([6*pc_slot+4])
+            self.rx_hpf[1] = self.gpiochip2.get_lines([6*pc_slot+5])
+        else:
+            self.rx_lpf[0] = self.gpiochip0.get_lines([95])
+            self.rx_lpf[1] = self.gpiochip0.get_lines([96])
+            self.rx_lpf[2] = self.gpiochip0.get_lines([97])
+            self.rx_hpf[0] = self.gpiochip0.get_lines([98])
+            self.rx_hpf[1] = self.gpiochip0.get_lines([99])
 
         # The rest of the lines live on an I2C expander on the Tellurium
         self.rx_hpf[2] = self.gpiochip.get_lines([0])
