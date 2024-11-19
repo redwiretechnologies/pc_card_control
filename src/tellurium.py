@@ -12,8 +12,8 @@ class tellurium:
     # gpiochip_num is the number of the gpiochip for the given Tellurium
     # This can be found by running gpioinfo from the terminal
     # transceiver_num specifies which transceiver card you are using ([0-1] on Carbon)
-    def __init__(self, pc_slot, gpiochip_num, transceiver_num, carp=1):
-        self.gpiochip0 = gpiod.Chip('gpiochip0')
+    def __init__(self, pc_slot, gpiochip_num, transceiver_num, carp=1, control_rxtx=1):
+        self.gpiochip0 = gpiod.Chip('gpiochip1')
         if carp:
             self.gpiochip2 = gpiod.Chip('gpiochip2')
             self.line_mux  = gpio_line_mux()
@@ -35,12 +35,16 @@ class tellurium:
             self.tx_enable = self.gpo_ctrl.get_lines([ADGPO_2])
 
         #These lines are for controlling the RX/TX on the transceivers
-        if carp:
-            self.rx = self.gpiochip0.get_lines([132+transceiver_num*3])
-            self.tx = self.gpiochip0.get_lines([133+transceiver_num*3])
+        if control_rxtx:
+            if carp:
+                self.rx = self.gpiochip0.get_lines([132+transceiver_num*3])
+                self.tx = self.gpiochip0.get_lines([133+transceiver_num*3])
+            else:
+                self.rx = self.gpiochip0.get_lines([125])
+                self.tx = self.gpiochip0.get_lines([126])
         else:
-            self.rx = self.gpiochip0.get_lines([125])
-            self.tx = self.gpiochip0.get_lines([126])
+            self.rx = None
+            self.tx = None
 
         self.rx_lpf  = [None]*3
         self.rx_hpf  = [None]*3
@@ -74,8 +78,9 @@ class tellurium:
         self.pa_enable = self.gpiochip.get_lines([7])
 
         self.pa_enable.request(consumer='TELLURIUM_PA_ENABLE', type=gpiod.LINE_REQ_DIR_OUT)
-        self.rx.request(consumer='TELLURIUM_RX_CTRL', type=gpiod.LINE_REQ_DIR_OUT)
-        self.tx.request(consumer='TELLURIUM_TX_CTRL', type=gpiod.LINE_REQ_DIR_OUT)
+        if control_rxtx:
+            self.rx.request(consumer='TELLURIUM_RX_CTRL', type=gpiod.LINE_REQ_DIR_OUT)
+            self.tx.request(consumer='TELLURIUM_TX_CTRL', type=gpiod.LINE_REQ_DIR_OUT)
 
         for i in self.rx_lpf:
             i.request(consumer='TELLURIUM_LPF', type=gpiod.LINE_REQ_DIR_OUT)
@@ -140,15 +145,19 @@ class tellurium:
 
     def enable_pa(self):
         print("Enabling PAs")
-        self.rx.set_values([0])
-        self.tx.set_values([1])
+        if self.rx:
+            self.rx.set_values([0])
+        if self.tx:
+            self.tx.set_values([1])
         self.pa_enable.set_values([1])
         self.tx_enable.set_values([1])
 
     def disable_pa(self):
         print("Disabling PAs")
-        self.rx.set_values([1])
-        self.tx.set_values([0])
+        if self.rx:
+            self.rx.set_values([1])
+        if self.tx:
+            self.tx.set_values([0])
         self.pa_enable.set_values([0])
         self.tx_enable.set_values([0])
 

@@ -1,5 +1,0 @@
-__init__
-gpio_line_mux
-selenium
-tellurium
-iio_gpo_control
