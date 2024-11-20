@@ -35,7 +35,7 @@ RFP_2_ADGPO_0 = 5
 RFP_2_ADGPO_1 = 6
 RFP_2_ADGPO_2 = 7
 RFP_3_ADGPO_0 = 8
-RFP_3_ADGPO_1 = 9
+RFP_3_ADGPO_2 = 9
 
 #These are output mappings to "values" you can set the "GPIO" lines to
 #LOW and HIGH are logic '0' and '1' respectively
