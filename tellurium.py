@@ -5,6 +5,7 @@
 import gpiod
 from .gpio_line_mux import *
 from .iio_gpo_control import *
+from .constants import *
 
 class tellurium:
 
@@ -13,9 +14,9 @@ class tellurium:
     # This can be found by running gpioinfo from the terminal
     # transceiver_num specifies which transceiver card you are using ([0-1] on Carbon)
     def __init__(self, pc_slot, gpiochip_num, transceiver_num, carp=1, control_rxtx=1):
-        self.gpiochip0 = gpiod.Chip('gpiochip1')
+        self.gpiochip0 = gpiod.Chip('gpiochip{}'.format(BASE_GPIO_CHIP))
         if carp:
-            self.gpiochip2 = gpiod.Chip('gpiochip2')
+            self.gpiochip2 = gpiod.Chip('gpiochip{}'.format(CARP_GPIO_CHIP))
             self.line_mux  = gpio_line_mux()
         else:
             self.gpo_ctrl = iio_gpo_control()
@@ -90,6 +91,7 @@ class tellurium:
             i.request(consumer='TELLURIUM_PA', type=gpiod.LINE_REQ_DIR_OUT)
         for i in self.tx_filt:
             i.request(consumer='TELLURIUM_TX_FILT', type=gpiod.LINE_REQ_DIR_OUT)
+
     #Configure the low pass filter
     def configure_rx_lpf(self, freq):
         freqs = {  145000000: [0, 1, 0],
@@ -125,6 +127,11 @@ class tellurium:
         self.configure_rx_lpf(freq)
         self.configure_rx_hpf(freq)
 
+    # Make RX unfiltered
+    def configure_rx_unfiltered(self):
+        self.configure_rx_lpf(4000000000)
+        self.configure_rx_hpf(100000000)
+
     # Configure PA
     # 0=No PA
     # 1=First Stage PA
@@ -154,14 +161,14 @@ class tellurium:
 
     def disable_pa(self):
         print("Disabling PAs")
+        self.tx_enable.set_values([0])
+        self.pa_enable.set_values([0])
         if self.rx:
             self.rx.set_values([1])
         if self.tx:
             self.tx.set_values([0])
-        self.pa_enable.set_values([0])
-        self.tx_enable.set_values([0])
 
-    #These are each notch filters
+    #Configure TX LPF
     def configure_tx_filters(self, freq):
         freqs = {  230000000: [1, 0, 1],
                    560000000: [0, 1, 1],
@@ -175,3 +182,7 @@ class tellurium:
                 for gpio, val in zip(self.tx_filt, v):
                     gpio.set_values([val])
                 return
+
+    #Make TX unfiltered
+    def configure_tx_unfiltered(self):
+        self.configure_tx_filters(4000000000)

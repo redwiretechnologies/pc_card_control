@@ -3,14 +3,18 @@
 # SPDX-License-Identifier: MIT
 
 import gpiod
+from .constants import *
 
 class selenium:
 
     # pc_slot is the personality card slot ([0-4] on CARP)
     # gpiochip_num is the number of the gpiochip for the given Selenium
     # This can be found by running gpioinfo from the terminal
-    def __init__(self, pc_slot, gpiochip_num):
-        self.gpiochip2 = gpiod.Chip('gpiochip2')
+    def __init__(self, pc_slot, gpiochip_num, carp=1):
+        if carp:
+            self.gpiochip2 = gpiod.Chip('gpiochip{}'.format(CARP_GPIO_CHIP))
+        else:
+            self.gpiochip0 = gpiod.Chip('gpiochip{}'.format(BASE_GPIO_CHIP))
         self.gpiochip  = gpiod.Chip("gpiochip{}".format(gpiochip_num))
 
         self.lpf = [[None]*3, [None]*3]
@@ -19,10 +23,16 @@ class selenium:
         # The first four of these lines live on an I2C expander on CARP
         # The position of the GPIOs on the expander are relative to the
         # slot number
-        self.lpf[0][0] = self.gpiochip2.get_lines([6*pc_slot+1])
-        self.lpf[0][1] = self.gpiochip2.get_lines([6*pc_slot+2])
-        self.lpf[0][2] = self.gpiochip2.get_lines([6*pc_slot+3])
-        self.hpf[0][0] = self.gpiochip2.get_lines([6*pc_slot+4])
+        if carp:
+            self.lpf[0][0] = self.gpiochip2.get_lines([6*pc_slot+1])
+            self.lpf[0][1] = self.gpiochip2.get_lines([6*pc_slot+2])
+            self.lpf[0][2] = self.gpiochip2.get_lines([6*pc_slot+3])
+            self.hpf[0][0] = self.gpiochip2.get_lines([6*pc_slot+4])
+        else:
+            self.lpf[0][0] = self.gpiochip0.get_lines([95])
+            self.lpf[0][1] = self.gpiochip0.get_lines([96])
+            self.lpf[0][2] = self.gpiochip0.get_lines([97])
+            self.hpf[0][0] = self.gpiochip0.get_lines([98])
 
         # The rest of the lines live on an I2C expander on the Selenium
         self.hpf[0][1] = self.gpiochip.get_lines([0])
@@ -84,3 +94,8 @@ class selenium:
     def configure_filters(self, freq, rx_path=-1):
         self.configure_lpf(freq, rx_path)
         self.configure_hpf(freq, rx_path)
+
+    # Set unfiltered
+    def configure_unfiltered(self, rx_path=-1):
+        self.configure_lpf(4000000000, rx_path)
+        self.configure_hpf(100000000, rx_path)

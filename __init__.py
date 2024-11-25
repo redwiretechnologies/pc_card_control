@@ -7,3 +7,4 @@ from .iio_gpo_control import *
 from .selenium import *
 from .tellurium import *
 from .bismuth import *
+from .cardf import *
