@@ -3,16 +3,46 @@
 # SPDX-License-Identifier: MIT
 
 import gpiod
+import logging
 from .gpio_line_mux import *
 from .iio_gpo_control import *
 from .constants import *
 
 class cardf:
+    """
+    A class for controlling the CARDF backpack
 
-    # gpiochip_num is the number of the gpiochip for the CARDF
-    # This can be found by running gpioinfo from the terminal
-    # transceiver_num specifies which transceiver card you are using ([0-1] on Carbon)
-    def __init__(self, gpiochip_num, control_rxtx=1):
+    **Expected declaration:**
+
+        my_cardf = pc_card_control.cardf(0, 2, reset=1)
+    """
+
+    def __init__(self, gpiochip_num, control_rxtx=1, reset=0):
+        """
+        Initialize a CARDF
+
+        Args:
+            gpiochip_num (int): Number of the gpiochip that is created when
+                                the CARDF DTS is loaded (this can be found
+                                via gpioinfo in the terminal)
+
+            control_rxtx (int): Should this control the transceiver's RX/TX
+                                lines (Default: 1)
+
+            reset (int): Should the reset() function be called at the end
+                         of initialization (Default:0)
+        """
+
+        #Setup logger
+        self.log = logging.getLogger("cardf")
+
+        #Debug log to express initialization parameters
+        self.log.debug("CARDF init")
+        self.log.debug("Using base GPIOCHIP{}".format(BASE_GPIO_CHIP))
+        self.log.debug("Using secondary GPIOCHIP{}".format(gpiochip_num))
+        if control_rxtx:
+            self.log.debug("Set to control RX/TX")
+
         self.gpiochip0 = gpiod.Chip('gpiochip{}'.format(BASE_GPIO_CHIP))
         self.gpiochip  = gpiod.Chip("gpiochip{}".format(gpiochip_num))
 
@@ -95,32 +125,62 @@ class cardf:
         for i in self.tx_enable:
             i.request(consumer='CARDF_TX_EN', type=gpiod.LINE_REQ_DIR_OUT)
 
+        if reset:
+            self.reset()
+
+    def reset(self):
+        """
+        Base reset for the board. Disables filtering, disables PAs/LNAs
+        """
+        self.configure_rx_unfiltered()
+        self.configure_tx_unfiltered()
+        self.disable_pa()
+        self.disable_lnas()
+
     def enable_bt(self):
+        """Enable Bluetooth"""
+        self.log.info("Enabling Bluetooth")
         for gpio in self.bt_enable:
             gpio.set_values([1])
 
     def disable_bt(self):
+        """Disable Bluetooth"""
+        self.log.info("Disabling Bluetooth")
         for gpio in self.bt_enable:
             gpio.set_values([0])
 
     def enable_wifi(self):
+        """Enable WiFi"""
+        self.log.info("Enabling WiFi")
         for gpio in self.wifi_enable:
             gpio.set_values([1])
 
     def disable_wifi(self):
+        """Disable WiFi"""
+        self.log.info("Disabling WiFi")
         for gpio in self.wifi_enable:
             gpio.set_values([0])
 
     def enable_lnas(self):
+        """Enables the LNAs. Also disables the PAs"""
+        self.log.info("Enabling LNAs")
+        self.disable_pa()
         for gpio in self.lna_enable:
             gpio.set_values([1])
 
     def disable_lnas(self):
+        """Disables the LNAs"""
         for gpio in self.lna_enable:
             gpio.set_values([0])
 
-    #Configure the band pass filter
     def configure_rx_filters(self, freq):
+        """
+        Configure the RX filters for the requested frequency
+
+        Args:
+            freq (int): Desired frequency to set.
+        """
+
         freqs = [([ 902000000,  928000000], [0, 1]),
                  ([2400000000, 2500000000], [1, 0]),
                  ([5000000000, 6000000000], [1, 1]),
@@ -131,21 +191,45 @@ class cardf:
             if freq >= k[0][0] and freq <= k[0][1]:
                 for gpio, val in zip(self.rx_bpf, k[1]):
                     gpio.set_values([val])
-                print("Set BPF to {}".format(freq_names[i]))
+                self.log.info("Set BPF to {}".format(freq_names[i]))
                 return
 
-    #Make RX Unfiltered
     def configure_rx_unfiltered(self):
+        """Configure the RX filters to the unfiltered setting"""
         self.configure_rx_filters(1)
 
-    def enable_pa(self):
-        print("Enabling PAs")
+    def configure_receive(self):
+        """
+        Disable the PAs. If control_rxtx set, turn off TX and enable RX.
+        """
+        self.log.info("Configure Receive")
+        self.disable_pa()
+        if self.tx:
+            for gpio in self.tx:
+                gpio.set_values([0])
+        if self.rx:
+            for gpio in self.rx:
+                gpio.set_values([1])
+
+    def configure_transmit(self):
+        """
+        Disable the LNAs. If control_rxtx set, turn off RX and enable TX.
+        """
+        self.log.info("Configure Transmit")
+        self.disable_lnas()
         if self.rx:
             for gpio in self.rx:
                 gpio.set_values([0])
         if self.tx:
             for gpio in self.tx:
                 gpio.set_values([1])
+
+    def enable_pa(self):
+        """
+        Enable the PAs. Disable the LNAs
+        """
+        self.log.info("Enabling PAs")
+        self.disable_lnas()
         for gpio in self.pa_enable:
             gpio.set_values([1])
         for gpio in self.tx_enable:
@@ -153,21 +237,26 @@ class cardf:
         self.tx_inhib.set_values([0])
 
     def disable_pa(self):
-        print("Disabling PAs")
+        """
+        Disable the PAs.
+        """
+        self.log.info("Disabling PAs")
         self.tx_inhib.set_values([1])
         for gpio in self.tx_enable:
             gpio.set_values([0])
         for gpio in self.pa_enable:
             gpio.set_values([0])
-        if self.rx:
-            for gpio in self.rx:
-                gpio.set_values([1])
-        if self.tx:
-            for gpio in self.tx:
-                gpio.set_values([0])
 
-    #Configure TX notch filters
-    def configure_tx_filters(self, freq, rx_path=-1):
+    def configure_tx_filters(self, freq, tx_path=-1):
+        """
+        Configure the TX filters for the requested frequency
+
+        Args:
+            freq (int): Desired frequency to set.
+
+            tx_path (int): Desired TX path to set the filters for ([0-1] or
+                           -1 for both)
+        """
         freqs = {  230000000: [1, 0, 1],
                    560000000: [0, 1, 1],
                   1300000000: [1, 1, 0],
@@ -176,16 +265,22 @@ class cardf:
 
         for k, v in freqs.items():
             if freq <= k:
-                print("Configuring TX filters for {}".format(k))
-                if rx_path == -1:
-                    for r in [0, 1]:
-                        for gpio, val in zip(self.tx_filt[r], v):
-                            gpio.set_values([val])
-                else:
-                    for gpio, val in zip(self.tx_filt[rx_path], v):
+                if rx_path == -1 or rx_path == 0:
+                    self.log.info("Configuring TX filters for {} on TX 0".format(k))
+                    for gpio, val in zip(self.tx_filt[0], v):
+                        gpio.set_values([val])
+                if rx_path == -1 or rx_path == 1:
+                    self.log.info("Configuring TX filters for {} on TX 1".format(k))
+                    for gpio, val in zip(self.tx_filt[1], v):
                         gpio.set_values([val])
                 return
 
-    #Make TX unfiltered
-    def configure_tx_unfiltered(self, rx_path=-1):
-        self.configure_tx_filters(4000000000)
+    def configure_tx_unfiltered(self, tx_path=-1):
+        """
+        Configure the TX filters to the unfiltered setting
+
+        Args:
+            tx_path (int): Desired TX path to set the filters for ([0-1] or
+                           -1 for both)
+        """
+        self.configure_tx_filters(4000000000, tx_path)

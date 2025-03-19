@@ -9,11 +9,51 @@ from .constants import *
 
 class tellurium:
 
-    # pc_slot is the personality card slot ([0-4] on CARP)
-    # gpiochip_num is the number of the gpiochip for the given Tellurium
-    # This can be found by running gpioinfo from the terminal
-    # transceiver_num specifies which transceiver card you are using ([0-1] on Carbon)
-    def __init__(self, pc_slot, gpiochip_num, transceiver_num, carp=1, control_rxtx=1):
+    """
+    A class for controlling the Tellurium personality card
+
+    **Expected declaration:**
+
+        my_tellurium = pc_card_control.tellurium(0, 2, 0, carp=0, reset=1)
+    """
+    def __init__(self, pc_slot, gpiochip_num, transceiver_num, carp=1, control_rxtx=1, reset=0):
+        """
+        Initialize a Tellurium board
+
+        Args:
+            pc_slot (int): Personality card slot number ([0-4]). If not on
+                           CARP, use 0
+
+            gpiochip_num (int): Number of the gpiochip that is created when
+                                the Tellurium DTS is loaded (this can be
+                                found via gpioinfo in the terminal)
+
+            transceiver_num (int): The number of which transceiver this is
+                                   connected to.
+
+            carp (int): Is this on a CARP (Default: 1)
+
+            control_rxtx (int): Should this control the transceiver's RX/TX
+                                lines (Default: 1)
+
+            reset (int): Should the reset() function be called at the end
+                         of initialization (Default:0)
+        """
+
+        #Setup logger
+        self.log = logging.getLogger("tellurium_{}".format(pc_slot))
+
+        #Debug log to express initialization parameters
+        self.log.debug("Tellurium init")
+        self.log.debug("Using base GPIOCHIP{}".format(BASE_GPIO_CHIP))
+        self.log.debug("Using secondary GPIOCHIP{}".format(gpiochip_num))
+        if carp:
+            self.log.debug("Using CARP GPIOCHIP{}".format(CARP_GPIO_CHIP))
+        self.log.debug("Using Personality Card slot {}".format(pc_slot))
+        self.log.debug("Using Transceiver {}".format(transceiver_num))
+        if control_rxtx:
+            self.log.debug("Set to control RX/TX")
+
         self.gpiochip0 = gpiod.Chip('gpiochip{}'.format(BASE_GPIO_CHIP))
         if carp:
             self.gpiochip2 = gpiod.Chip('gpiochip{}'.format(CARP_GPIO_CHIP))
@@ -25,15 +65,15 @@ class tellurium:
         if carp:
             match pc_slot:
                 case 0:
-                    self.tx_enable = self.line_mux.get_lines([RFP_0_ADGPO_2])
+                    self.tx_enable = self.line_mux.get_lines([CARP_GPO_IN.RFP_0_ADGPO_2.value])
                 case 1:
-                    self.tx_enable = self.line_mux.get_lines([RFP_1_ADGPO_2])
+                    self.tx_enable = self.line_mux.get_lines([CARP_GPO_IN.RFP_1_ADGPO_2.value])
                 case 2:
-                    self.tx_enable = self.line_mux.get_lines([RFP_2_ADGPO_2])
+                    self.tx_enable = self.line_mux.get_lines([CARP_GPO_IN.RFP_2_ADGPO_2.value])
                 case 3:
-                    self.tx_enable = self.line_mux.get_lines([RFP_3_ADGPO_2])
+                    self.tx_enable = self.line_mux.get_lines([CARP_GPO_IN.RFP_3_ADGPO_2.value])
         else:
-            self.tx_enable = self.gpo_ctrl.get_lines([ADGPO_2])
+            self.tx_enable = self.gpo_ctrl.get_lines([AD9361_GPO.ADGPO_2.value])
 
         #These lines are for controlling the RX/TX on the transceivers
         if control_rxtx:
@@ -92,8 +132,26 @@ class tellurium:
         for i in self.tx_filt:
             i.request(consumer='TELLURIUM_TX_FILT', type=gpiod.LINE_REQ_DIR_OUT)
 
-    #Configure the low pass filter
+        if reset:
+            self.reset()
+
+    def reset(self):
+        """
+        Base reset for the board. Disables RX/TX filtering, sets to not use
+        PAs, disables PAs/, and configures the board for receive
+        """
+        self.configure_rx_unfiltered()
+        self.configure_tx_unfiltered()
+        self.configure_pa(0)
+        self.disable_pa()
+
     def configure_rx_lpf(self, freq):
+        """
+        Configure the Low-pass Filters (LPF) for the requested frequency
+
+        Args:
+            freq (int): Desired frequency to set.
+        """
         freqs = {  145000000: [0, 1, 0],
                    440000000: [0, 1, 1],
                   1370000000: [1, 0, 1],
@@ -104,11 +162,16 @@ class tellurium:
             if freq <= k:
                 for gpio, val in zip(self.rx_lpf, v):
                     gpio.set_values([val])
-                print("Set LPF to {}".format(k))
+                self.log.info("Set RX LPF to {}".format(k))
                 return
 
-    # Configure the high pass filter
     def configure_rx_hpf(self, freq):
+        """
+        Configure the High-pass Filters (HPF) for the requested frequency
+
+        Args:
+            freq (int): Desired frequency to set.
+        """
         freqs = { 3780000000: [1, 1, 0],
                   1930000000: [1, 0, 1],
                    840000000: [0, 1, 1],
@@ -119,57 +182,90 @@ class tellurium:
             if freq >= k:
                 for gpio, val in zip(self.rx_hpf, v):
                     gpio.set_values([val])
-                print("Set HPF to {}".format(k))
+                self.log.info("Set RX HPF to {}".format(k))
                 return
 
-    # Configure both sets of filters
     def configure_rx_filters(self, freq):
+        """
+        Configure the LPF and HPF for the requested frequency
+
+        Args:
+            freq (int): Desired frequency to set.
+        """
         self.configure_rx_lpf(freq)
         self.configure_rx_hpf(freq)
 
-    # Make RX unfiltered
     def configure_rx_unfiltered(self):
+        """Configure the RX filters to the unfiltered setting"""
         self.configure_rx_lpf(4000000000)
         self.configure_rx_hpf(100000000)
 
-    # Configure PA
-    # 0=No PA
-    # 1=First Stage PA
-    # 2=Full Power PA
     def configure_pa(self, power_level):
+        """
+        Configure the PA
 
+        Args:
+            power_level (int): Set power level (0-2).
+                               No PA    = 0
+                               100mw PA = 1
+                               1W PA    = 2
+        """
         power = [[0, 0],
                  [1, 0],
                  [1, 1]]
 
         if power_level not in range(0, 3):
-            print("Power level must be 0-2")
+            self.log.warning("Power level must be 0-2")
             return
 
         for gpio, val in zip(self.pa, power[power_level]):
             gpio.set_values([val])
-        print("Power level set to {}".format(power_level))
+        self.log.info("Power level set to {}".format(power_level))
 
     def enable_pa(self):
-        print("Enabling PAs")
-        if self.rx:
-            self.rx.set_values([0])
-        if self.tx:
-            self.tx.set_values([1])
+        """
+        Enable the PAs. Disable the LNAs
+        """
+        self.log.info("Enabling PAs")
         self.pa_enable.set_values([1])
         self.tx_enable.set_values([1])
 
     def disable_pa(self):
-        print("Disabling PAs")
+        """
+        Disable the PAs.
+        """
+        self.log.info("Disabling PAs")
         self.tx_enable.set_values([0])
         self.pa_enable.set_values([0])
-        if self.rx:
-            self.rx.set_values([1])
+
+    def configure_receive(self):
+        """
+        Disable the PAs. If control_rxtx set, turn off TX and enable RX.
+        """
+        self.log.info("Configure Receive")
+        self.disable_pa()
         if self.tx:
             self.tx.set_values([0])
+        if self.rx:
+            self.rx.set_values([1])
 
-    #Configure TX LPF
+    def configure_transmit(self):
+        """
+        Disable the LNAs.
+        """
+        self.log.info("Configure Transmit")
+        if self.rx:
+            self.rx.set_values([0])
+        if self.tx:
+            self.tx.set_values([1])
+
     def configure_tx_filters(self, freq):
+        """
+        Configure the TX filters for the requested frequency
+
+        Args:
+            freq (int): Desired frequency to set.
+        """
         freqs = {  230000000: [1, 0, 1],
                    560000000: [0, 1, 1],
                   1300000000: [1, 1, 0],
@@ -178,11 +274,11 @@ class tellurium:
 
         for k, v in freqs.items():
             if freq <= k:
-                print("Configuring TX filters for {}".format(k))
+                self.log.info("Configuring TX filters for {}".format(k))
                 for gpio, val in zip(self.tx_filt, v):
                     gpio.set_values([val])
                 return
 
-    #Make TX unfiltered
     def configure_tx_unfiltered(self):
+        """Configure the TX filters to the unfiltered setting"""
         self.configure_tx_filters(4000000000)
