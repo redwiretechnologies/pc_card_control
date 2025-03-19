@@ -178,7 +178,7 @@ class argon:
                 case 3:
                     self.tx_enable = self.line_mux.get_lines([CARP_GPO_IN.RFP_3_ADGPO_2.value])
         else:
-            self.tx_enable = self.gpo_ctrl.get_lines([AD9361.ADGPO_2.value])
+            self.tx_enable = self.gpo_ctrl.get_lines([AD9361_GPO.ADGPO_2.value])
 
         #These lines are for controlling the RX/TX on the transceivers
         if control_rxtx:
@@ -315,7 +315,7 @@ class argon:
                 else:
                     self.current_synth_setting = i
             if self.current_synth_setting == len(self.synth_settings.SYNTH_BOUNDS)-1:
-                self.log.warn("Could not tune to frequency {}. Frequency must be less than {}".format(frequency, self.synth_settings.SYNTH_BOUNDS[-1]))
+                self.log.warning("Could not tune to frequency {}. Frequency must be less than {}".format(frequency, self.synth_settings.SYNTH_BOUNDS[-1]))
                 self.send_spi(self.synth_settings.POWER_D)
                 self.current_synth_setting = -1
                 self.synth_en.set_values([0])
