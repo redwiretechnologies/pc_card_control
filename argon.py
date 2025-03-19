@@ -14,34 +14,6 @@ from .constants import *
 class synth_settings:
     """
     A class for holding the synthesizer settings for Argon
-
-    Members:
-        base_map (list[list[int]]): Default register settings for the
-                                    synthesizer to configure for 5.93GHz
-
-        change_map (dict): A list of changes that should be made to the base
-                           register configuration dependent on frequency.
-                           Top level keys correspond to the given index of
-                           the frequency in SYNTH_FREQ. The second level
-                           keys refer to the index in the base_map
-                           (78-desired_register_number)
-
-        SYNTH_BOUNDS (list[int]): List of boundary crossovers to switch to
-                                  the next set of frequency settings
-
-        SYNTH_FREQ (list[int]): The actual frequency the synthesizer is
-                                configured for if you cross SYNTH_BOUND[i+1]
-
-        RESET (list[int]): Commands to be sent to reset the synthesizer
-
-        POWER_D (list[int]): Commands to be sent to power down the
-                             synthesizer
-
-        POWER_U (list[int]): Commands to be sent to power up the synthesizer
-
-        FCAL_EN (list[int]): Commands to be sent to enable calibration on
-                             the synthesizer
-
     """
     def __init__(self):
         self.base_map = [[0x4e, 0x00, 0x03], [0x4d, 0x00, 0x00], [0x4c, 0x00, 0x0c],
@@ -72,6 +44,10 @@ class synth_settings:
                          [0x03, 0x06, 0x42], [0x02, 0x05, 0x00], [0x01, 0x08, 0x08],
                          [0x00, 0x27, 0x14],
                         ]
+        """
+        list[list[int]]: Default register settings for the synthesizer to
+                         configure for 5.93GHz
+        """
 
         self.change_map = {0: {},
                            1: { 32: [0x2E, 0x07, 0xFD],
@@ -83,15 +59,55 @@ class synth_settings:
                                 42: [0x24, 0x00, 0x4B],
                               },
                           }
+        """
+        dict: A list of changes that should be made to the base register
+              configuration dependent on frequency.  Top level keys
+              correspond to the given index of the frequency in
+              SYNTH_FREQ. The second level keys refer to the index in the
+              base_map (78-desired_register_number)
+        """
+
         self.SYNTH_BOUNDS = [6e9, 11930e6, 17860e6, 21e9]
+        """
+        list[int]: List of boundary crossovers to switch to the next set of
+                   frequency settings
+        """
         self.SYNTH_FREQ   = [5930e6, 11860e6, 15e9]
+        """
+        list[int]: The actual frequency the synthesizer is configured for
+                   if you cross SYNTH_BOUND[i+1]
+        """
 
         self.RESET   = [0x00, 0x24, 0x12, 0x00, 0x24, 0x10]
+        """
+        list[int]: Commands to be sent to reset the synthesizer
+        """
         self.POWER_D = [0x00, 0x24, 0x11]
+        """
+        list[int]: Commands to be sent to power down the synthesizer
+        """
         self.POWER_U = [0x00, 0x24, 0x10]
+        """
+        list[int]: Commands to be sent to power up the synthesizer
+        """
         self.FCAL_EN = [0x00, 0x27, 0x1C]
+        """
+        list[int]: Commands to be sent to enable calibration on the
+                   synthesizer
+        """
 
     def get_settings(self, index):
+        """
+        Returns a copy of the register settings with the proper
+        replacements based on the index
+
+        Args:
+            index (int): The index of the desired frequency setting from
+                         SYNTH_FREQ
+
+        Returns:
+            list[list[int]]: The proper register settings to be applied
+        """
         settings = copy.deepcopy(self.base_map)
         for k, v in self.change_map[index].items():
             settings[k] = v
