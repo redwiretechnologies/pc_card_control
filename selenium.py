@@ -11,10 +11,10 @@ class selenium:
 
     **Expected declaration:**
 
-        my_selenium = pc_card_control.selenium(0, 2, carp=0, reset=1)
+        my_selenium = pc_card_control.selenium(0, 2)
     """
 
-    def __init__(self, pc_slot, gpiochip_num, carp=1, reset=0):
+    def __init__(self, pc_slot, gpiochip_num, carp=0, reset=1):
         """
         Initialize a Selenium board
 
@@ -26,10 +26,10 @@ class selenium:
                                 the Selenium DTS is loaded (this can be
                                 found via gpioinfo in the terminal)
 
-            carp (int): Is this on a CARP (Default: 1)
+            carp (int): Is this on a CARP (Default: 0)
 
             reset (int): Should the reset() function be called at the end
-                         of initialization (Default:0)
+                         of initialization (Default:1)
         """
 
         #Setup logger

@@ -14,10 +14,10 @@ class cardf:
 
     **Expected declaration:**
 
-        my_cardf = pc_card_control.cardf(0, 2, reset=1)
+        my_cardf = pc_card_control.cardf(0, 2, reset=0)
     """
 
-    def __init__(self, gpiochip_num, control_rxtx=1, reset=0):
+    def __init__(self, gpiochip_num, control_rxtx=1, reset=1):
         """
         Initialize a CARDF
 
@@ -30,7 +30,7 @@ class cardf:
                                 lines (Default: 1)
 
             reset (int): Should the reset() function be called at the end
-                         of initialization (Default:0)
+                         of initialization (Default:1)
         """
 
         #Setup logger

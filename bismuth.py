@@ -14,10 +14,10 @@ class bismuth:
 
     **Expected declaration:**
 
-        my_bismuth = pc_card_control.bismuth(0, 2, 0, carp=0, reset=1)
+        my_bismuth = pc_card_control.bismuth(0, 2, 0)
     """
 
-    def __init__(self, pc_slot, gpiochip_num, transceiver_num, carp=1, control_rxtx=1, reset=0):
+    def __init__(self, pc_slot, gpiochip_num, transceiver_num, carp=0, control_rxtx=1, reset=1):
         """
         Initialize a Bismuth board
 
@@ -32,13 +32,13 @@ class bismuth:
             transceiver_num (int): The number of which transceiver this is
                                    connected to.
 
-            carp (int): Is this on a CARP (Default: 1)
+            carp (int): Is this on a CARP (Default: 0)
 
             control_rxtx (int): Should this control the transceiver's RX/TX
                                 lines (Default: 1)
 
             reset (int): Should the reset() function be called at the end
-                         of initialization (Default:0)
+                         of initialization (Default:1)
         """
 
         #Setup logger

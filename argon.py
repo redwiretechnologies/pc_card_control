@@ -119,10 +119,10 @@ class argon:
 
     **Expected declaration:**
 
-        my_argon = pc_card_control.argon(0, 2, 0, 1, 0x2B, carp=0, reset=1)
+        my_argon = pc_card_control.argon(0, 2, 0, 1, 0x2B)
     """
 
-    def __init__(self, pc_slot, gpiochip_num, transceiver_num, i2cbus, address, carp=1, control_rxtx=1, reset=0):
+    def __init__(self, pc_slot, gpiochip_num, transceiver_num, i2cbus, address, carp=0, control_rxtx=1, reset=1):
         """
         Initialize an Argon board
 
@@ -142,13 +142,13 @@ class argon:
 
             address (int): The I2C address of the Argon's I2C->SPI chip
 
-            carp (int): Is this on a CARP (Default: 1)
+            carp (int): Is this on a CARP (Default: 0)
 
             control_rxtx (int): Should this control the transceiver's RX/TX
                                 lines (Default: 1)
 
             reset (int): Should the reset() function be called at the end
-                         of initialization (Default:0)
+                         of initialization (Default:1)
         """
         #Setup logger
         self.log = logging.getLogger("argon_{}".format(pc_slot))
