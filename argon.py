@@ -263,7 +263,11 @@ class argon:
                   3125000000: [0, 1, 0],
                   9999999999: [0, 0, 1]} #UNFILTERED
 
-        frequency = freq-self.synth_settings.SYNTH_FREQ[self.current_synth_setting]
+        if self.current_synth_setting != -1:
+            frequency = freq-self.synth_settings.SYNTH_FREQ[self.current_synth_setting]
+        else:
+            frequency = freq
+
         for k, v in freqs.items():
             if frequency <= k:
                 self.log.info("Configuring TX filters for {}".format(k))
@@ -335,7 +339,8 @@ class argon:
                 self.send_spi(self.synth_settings.POWER_D)
                 self.current_synth_setting = -1
                 self.synth_en.set_values([0])
-                self.configure_tx_unfiltered()
+                if autofilter:
+                    self.configure_tx_unfiltered()
             else:
                 if autofilter:
                     self.configure_tx_filters(frequency)
