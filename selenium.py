@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import gpiod
+import logging
 from .constants import *
 
 class selenium:

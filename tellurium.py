@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import gpiod
+import logging
 from .gpio_line_mux import *
 from .iio_gpo_control import *
 from .constants import *
